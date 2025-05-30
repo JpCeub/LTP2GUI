@@ -1,0 +1,156 @@
+# app.py
+import tkinter as tk
+from tkinter import ttk, messagebox
+import bd
+
+def iniciar_interface():
+    root = tk.Tk()
+    root.title("Gerenciador de Produtos e Prateleiras")
+
+    # Frame Prateleiras
+    frame_prateleiras = tk.LabelFrame(root, text="Prateleiras")
+    frame_prateleiras.pack(padx=10, pady=5, fill="x")
+
+    entry_prateleira = tk.Entry(frame_prateleiras)
+    entry_prateleira.pack(side="left", padx=5)
+    tk.Button(frame_prateleiras, text="Adicionar", command=lambda: adicionar_prateleira()).pack(side="left", padx=5)
+    tk.Button(frame_prateleiras, text="Atualizar", command=lambda: atualizar_prateleira_selecionada()).pack(side="left", padx=5)
+    tk.Button(frame_prateleiras, text="Excluir", command=lambda: deletar_prateleira_selecionada()).pack(side="left", padx=5)
+
+    tree_prateleiras = ttk.Treeview(root, columns=("ID", "Nome"), show="headings")
+    tree_prateleiras.heading("ID", text="ID")
+    tree_prateleiras.heading("Nome", text="Nome")
+    tree_prateleiras.pack(padx=10, pady=5, fill="x")
+
+    # Frame Produtos
+    frame_produtos = tk.LabelFrame(root, text="Produtos")
+    frame_produtos.pack(padx=10, pady=5, fill="x")
+
+    entry_produto = tk.Entry(frame_produtos)
+    entry_produto.grid(row=0, column=0, padx=5, pady=2)
+    entry_preco = tk.Entry(frame_produtos)
+    entry_preco.grid(row=0, column=1, padx=5, pady=2)
+    prateleira_var = tk.StringVar()
+    menu_prateleira = ttk.OptionMenu(frame_produtos, prateleira_var, "")
+    menu_prateleira.grid(row=0, column=2, padx=5, pady=2)
+
+    tk.Button(frame_produtos, text="Adicionar Produto", command=lambda: adicionar_produto()).grid(row=1, column=0, pady=5)
+    tk.Button(frame_produtos, text="Atualizar Produto", command=lambda: atualizar_produto_selecionado()).grid(row=1, column=1, pady=5)
+    tk.Button(frame_produtos, text="Excluir Produto", command=lambda: deletar_selecionado()).grid(row=1, column=2, pady=5)
+
+    tree = ttk.Treeview(root, columns=("ID", "Nome", "Preco", "Prateleira"), show="headings")
+    tree.heading("ID", text="ID")
+    tree.heading("Nome", text="Nome")
+    tree.heading("Preco", text="Preco")
+    tree.heading("Prateleira", text="Prateleira")
+    tree.pack(padx=10, pady=5, fill="both", expand=True)
+
+    # Funções internas
+    def atualizar_lista_prateleiras():
+        menu_prateleira['menu'].delete(0, 'end')
+        nomes = []
+        for _, nome in bd.listar_prateleiras():
+            nomes.append(nome)
+            menu_prateleira['menu'].add_command(label=nome, command=tk._setit(prateleira_var, nome))
+        if nomes:
+            prateleira_var.set(nomes[0])
+
+    def atualizar_tabela_prateleiras():
+        tree_prateleiras.delete(*tree_prateleiras.get_children())
+        for id_, nome in bd.listar_prateleiras():
+            tree_prateleiras.insert("", tk.END, values=(id_, nome))
+
+    def atualizar_lista_produtos():
+        tree.delete(*tree.get_children())
+        for item in bd.listar_produtos():
+            tree.insert("", tk.END, values=item)
+
+    def adicionar_prateleira():
+        nome = entry_prateleira.get().strip()
+        if not nome:
+            messagebox.showwarning("Aviso", "Informe o nome da prateleira.")
+            return
+        try:
+            bd.inserir_prateleira(nome)
+            atualizar_lista_prateleiras()
+            atualizar_tabela_prateleiras()
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
+
+    def atualizar_prateleira_selecionada():
+        item = tree_prateleiras.selection()
+        if not item:
+            messagebox.showwarning("Aviso", "Selecione uma prateleira para atualizar.")
+            return
+        try:
+            prateleira_id = tree_prateleiras.item(item)['values'][0]
+            novo_nome = entry_prateleira.get().strip()
+            bd.atualizar_prateleira(prateleira_id, novo_nome)
+            atualizar_lista_prateleiras()
+            atualizar_tabela_prateleiras()
+            atualizar_lista_produtos()
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
+
+    def deletar_prateleira_selecionada():
+        item = tree_prateleiras.selection()
+        if not item:
+            messagebox.showwarning("Aviso", "Selecione uma prateleira para excluir.")
+            return
+        try:
+            prateleira_id = tree_prateleiras.item(item)['values'][0]
+            bd.deletar_prateleira(prateleira_id)
+            atualizar_lista_prateleiras()
+            atualizar_tabela_prateleiras()
+            atualizar_lista_produtos()
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
+
+    def adicionar_produto():
+        nome = entry_produto.get().strip()
+        preco = entry_preco.get().strip()
+        prateleira_nome = prateleira_var.get()
+        if not nome or not preco:
+            messagebox.showwarning("Aviso", "Nome e preço são obrigatórios.")
+            return
+        try:
+            preco = float(preco)
+            bd.inserir_produto(nome, preco, prateleira_nome)
+            atualizar_lista_produtos()
+        except ValueError:
+            messagebox.showerror("Erro", "Preço deve ser um número.")
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
+
+    def atualizar_produto_selecionado():
+        item = tree.selection()
+        if not item:
+            messagebox.showwarning("Aviso", "Selecione um produto para atualizar.")
+            return
+        try:
+            produto_id = tree.item(item)['values'][0]
+            novo_nome = entry_produto.get().strip()
+            novo_preco = float(entry_preco.get())
+            nova_prateleira = prateleira_var.get()
+            bd.atualizar_produto(produto_id, novo_nome, novo_preco, nova_prateleira)
+            atualizar_lista_produtos()
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
+
+    def deletar_selecionado():
+        item = tree.selection()
+        if not item:
+            messagebox.showwarning("Aviso", "Selecione um produto para excluir.")
+            return
+        produto_id = tree.item(item)['values'][0]
+        bd.deletar_produto(produto_id)
+        atualizar_lista_produtos()
+
+    # Inicializações
+    atualizar_lista_prateleiras()
+    atualizar_tabela_prateleiras()
+    atualizar_lista_produtos()
+    root.mainloop()
+
+if __name__ == "__main__":
+    iniciar_interface()
